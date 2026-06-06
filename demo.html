@@ -848,10 +848,13 @@
     document.getElementById('ovOpenVulns').textContent  = openV;
     document.getElementById('ovOpenVulns').style.color  = openV > 0 ? 'var(--red)' : 'var(--green)';
 
-    const sbom1 = answers['sbom1']; const sbom6 = answers['sbom6'];
-    const sbomOk = sbom1 === 'yes' && sbom6 === 'yes';
-    document.getElementById('ovSbom').textContent  = sbomOk ? 'Active' : 'Not set up';
+    // SBOM status: 'Active' if assessment says yes OR a manifest was actually scanned
+    const sbom1  = answers['sbom1'];
+    const sbomOk = sbom1 === 'yes' || scannedDeps.length > 0;
+    const sbomText = scannedDeps.length > 0 ? 'Active ✓' : (sbomOk ? 'Active' : 'Not set up');
+    document.getElementById('ovSbom').textContent  = sbomText;
     document.getElementById('ovSbom').style.color  = sbomOk ? 'var(--green)' : 'var(--text-2)';
+    document.getElementById('ovSbom').title        = scannedDeps.length > 0 ? `${scannedDeps.length} components scanned` : '';
 
     // Radar chart
     const labels   = CRA_PILLARS.map(p => p.shortName);
@@ -1152,7 +1155,28 @@
     document.getElementById('btnDownloadSbom').style.display = 'inline-flex';
     document.getElementById('btnImportVulns').style.display = totalVulnsCount > 0 ? 'inline-flex' : 'none';
 
-    showToast('✓ Demo Scan completed', 'success');
+    // Auto-import scanned vulns into the tracker so they appear in reports
+    if (scannedVulnsToImport.length > 0) {
+      let autoImported = 0;
+      scannedVulnsToImport.forEach(newV => {
+        if (!vulns.some(v => v.cve === newV.cve)) {
+          vulns.unshift(newV);
+          autoImported++;
+        }
+      });
+      saveDemoVulns();
+      renderVulnTable();
+      if (autoImported > 0) {
+        showToast(`✓ Scan complete — ${autoImported} CVE(s) auto-added to Vulnerability Tracker`, 'success');
+      } else {
+        showToast('✓ Demo Scan completed — all CVEs already tracked', 'success');
+      }
+    } else {
+      showToast('✓ Demo Scan completed — no CVEs detected', 'success');
+    }
+
+    // Always refresh overview so SBOM status card updates immediately
+    refreshOverview();
   }
 
   function downloadCycloneDX() {
@@ -1261,37 +1285,71 @@
   function exportAssessmentReport() {
     const total = getTotalScore(answers);
     const win = window.open('', '_blank');
+
+    // Merge tracker vulns + any scanned-but-not-yet-imported vulns
+    const allVulns = [...vulns];
+    scannedVulnsToImport.forEach(sv => {
+      if (!allVulns.some(v => v.cve === sv.cve)) allVulns.push(sv);
+    });
+    const openV   = allVulns.filter(v => v.status !== 'resolved');
+    const resolvedV = allVulns.filter(v => v.status === 'resolved');
+
     let html = `
       <!DOCTYPE html>
       <html>
       <head>
         <title>CRA Assessment Report - ${user.product}</title>
         <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; padding: 40px; line-height: 1.6; }
-          h1 { color: #4f6ef7; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; padding: 40px; line-height: 1.6; max-width: 960px; margin: 0 auto; }
+          h1 { color: #4f6ef7; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 6px; }
+          h2 { color: #1e293b; margin-top: 32px; margin-bottom: 12px; font-size: 18px; }
           .meta { margin-bottom: 30px; font-size: 14px; color: #475569; }
-          .score-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center; }
-          .score-val { font-size: 36px; font-weight: bold; color: #4f6ef7; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-          th, td { padding: 12px; border: 1px solid #cbd5e1; text-align: left; font-size: 14px; }
-          th { background: #f1f5f9; }
+          .score-box { background: #f0f4ff; border: 2px solid #4f6ef7; padding: 24px; border-radius: 12px; margin-bottom: 30px; text-align: center; }
+          .score-val { font-size: 48px; font-weight: bold; color: #4f6ef7; margin: 6px 0; }
+          .score-label { font-size: 13px; color: #64748b; }
+          .pillar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 30px; }
+          .pillar-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; text-align: center; }
+          .pillar-card .name { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; }
+          .pillar-card .pct { font-size: 22px; font-weight: 700; color: #1e293b; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+          th, td { padding: 10px 12px; border: 1px solid #cbd5e1; text-align: left; font-size: 13px; }
+          th { background: #f1f5f9; font-weight: 600; }
+          tr:nth-child(even) td { background: #f8fafc; }
           .ans-yes { color: #10b981; font-weight: bold; }
           .ans-partial { color: #f59e0b; font-weight: bold; }
           .ans-no { color: #ef4444; font-weight: bold; }
-          @media print { body { padding: 0; } }
+          .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+          .sev-critical { background: #fee2e2; color: #dc2626; }
+          .sev-high     { background: #ffedd5; color: #ea580c; }
+          .sev-medium   { background: #fef9c3; color: #ca8a04; }
+          .sev-low      { background: #dcfce7; color: #16a34a; }
+          .status-open  { background: #fee2e2; color: #dc2626; }
+          .status-in-progress { background: #fef9c3; color: #ca8a04; }
+          .status-resolved    { background: #dcfce7; color: #16a34a; }
+          .section-note { font-size: 12px; color: #64748b; margin-bottom: 10px; }
+          @media print { body { padding: 20px; } }
         </style>
       </head>
       <body>
-        <h1>CRA Readiness Report</h1>
+        <h1>🛡️ CRA Readiness Report</h1>
         <div class="meta">
-          <strong>Company:</strong> ${user.company}<br>
-          <strong>Product:</strong> ${user.product}<br>
-          <strong>Date:</strong> ${new Date().toLocaleDateString()}<br>
+          <strong>Company:</strong> ${user.company} &nbsp;|&nbsp;
+          <strong>Product:</strong> ${user.product} &nbsp;|&nbsp;
+          <strong>Date:</strong> ${new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}
         </div>
-        
+
         <div class="score-box">
-          <div>Overall CRA Readiness Score</div>
+          <div class="score-label">Overall CRA Readiness Score</div>
           <div class="score-val">${total.pct}%</div>
+          <div class="score-label">${getScoreLabel(total.pct)} &mdash; ${Object.keys(answers).filter(k => DEMO_QUESTION_IDS.includes(k)).length} / 15 questions answered</div>
+        </div>
+
+        <h2>Pillar Scores</h2>
+        <div class="pillar-grid">
+          ${CRA_PILLARS.map(p => {
+            const s = getPillarScore(p.id, answers);
+            return '<div class="pillar-card"><div class="name">' + p.icon + ' ' + p.name + '</div><div class="pct">' + s.pct + '%</div></div>';
+          }).join('')}
         </div>
 
         <h2>Assessment Responses</h2>
@@ -1302,11 +1360,10 @@
     CRA_PILLARS.forEach(p => {
       const qs = demoQuestions.filter(q => q.pillarId === p.id);
       qs.forEach(q => {
-        if(answers[q.id]) {
-           const a = answers[q.id];
-           const aClass = 'ans-' + a;
-           const aText = a === 'yes' ? 'Yes' : (a === 'partial' ? 'Partial' : 'No');
-           html += `<tr><td>${p.name}</td><td>${q.text}</td><td class="${aClass}">${aText}</td></tr>`;
+        if (answers[q.id]) {
+          const a = answers[q.id];
+          const aText = a === 'yes' ? '✓ Yes' : (a === 'partial' ? '≈ Partial' : '✗ No');
+          html += `<tr><td>${p.icon} ${p.name}</td><td>${q.text}</td><td class="ans-${a}">${aText}</td></tr>`;
         }
       });
     });
@@ -1314,27 +1371,51 @@
     html += `
         </table>
 
-        <h2>Open Vulnerabilities</h2>
+        <h2>Vulnerability Tracker (${allVulns.length} total)</h2>
+        <p class="section-note">${openV.length} open / in-progress &nbsp;&middot;&nbsp; ${resolvedV.length} resolved &nbsp;&middot;&nbsp; Includes manual tracker + SBOM scan results</p>
         <table>
-          <tr><th>CVE</th><th>Component</th><th>Severity</th><th>Status</th></tr>
+          <tr><th>CVE</th><th>Component</th><th>Severity</th><th>Status</th><th>Reported</th></tr>
     `;
 
-    const openV = vulns.filter(v => v.status !== 'resolved');
-    if (openV.length === 0) {
-      html += `<tr><td colspan="4">No open vulnerabilities.</td></tr>`;
+    if (allVulns.length === 0) {
+      html += `<tr><td colspan="5" style="text-align:center;color:#64748b">No vulnerabilities tracked.</td></tr>`;
     } else {
-      openV.forEach(v => {
-        html += `<tr><td>${v.cve}</td><td>${v.component}</td><td>${v.severity.toUpperCase()}</td><td>${v.status.toUpperCase()}</td></tr>`;
+      allVulns.forEach(v => {
+        const sev = (v.severity || 'medium').toLowerCase();
+        const st  = (v.status || 'open').toLowerCase().replace(' ', '-');
+        html += `<tr>
+          <td><strong>${v.cve}</strong></td>
+          <td>${v.component}</td>
+          <td><span class="badge sev-${sev}">${sev}</span></td>
+          <td><span class="badge status-${st}">${v.status}</span></td>
+          <td>${v.reported || '—'}</td>
+        </tr>`;
+      });
+    }
+
+    // SBOM scanned components section
+    if (scannedDeps.length > 0) {
+      html += `
+        </table>
+        <h2>SBOM — Scanned Components (${scannedDeps.length})</h2>
+        <p class="section-note">Generated from uploaded manifest via OSV.dev CVE database query.</p>
+        <table>
+          <tr><th>Component</th><th>Version</th><th>Ecosystem</th><th>CVEs Found</th></tr>
+      `;
+      scannedDeps.forEach(d => {
+        html += `<tr>
+          <td><strong>${d.name}</strong></td>
+          <td><code>${d.version}</code></td>
+          <td>${d.ecosystem}</td>
+          <td>${d.vulnsCount > 0 ? '<span class="badge sev-high">' + d.vulnsCount + ' CVEs</span>' : '<span class="badge" style="background:#dcfce7;color:#16a34a">Clean</span>'}</td>
+        </tr>`;
       });
     }
 
     html += `
         </table>
-        
         <script>
-          window.onload = function() {
-            window.print();
-          };
+          window.onload = function() { window.print(); };
         <\/script>
       </body>
       </html>
