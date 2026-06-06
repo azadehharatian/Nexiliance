@@ -401,6 +401,50 @@
       color: #ff8080;
     }
 
+    /* ── Remediation modal ── */
+    .rem-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; }
+    .rem-sev-pill {
+      flex-shrink: 0; padding: 4px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+    }
+    .rem-section { margin-bottom: 18px; }
+    .rem-section-title {
+      font-size: 11px; font-weight: 700; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+    }
+    .rem-fix-box {
+      background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25);
+      border-radius: var(--r); padding: 12px 16px;
+    }
+    .rem-fix-title { font-size: 13px; font-weight: 600; color: var(--green); margin-bottom: 4px; }
+    .rem-fix-desc  { font-size: 12px; color: var(--text-2); line-height: 1.55; }
+    .rem-fix-version {
+      display: inline-block; background: rgba(16,185,129,0.15); color: var(--green);
+      border: 1px solid rgba(16,185,129,0.3); border-radius: 4px;
+      padding: 2px 10px; font-size: 12px; font-weight: 700; margin-top: 6px; font-family: monospace;
+    }
+    .rem-steps { display: flex; flex-direction: column; gap: 8px; }
+    .rem-step {
+      display: flex; gap: 12px; align-items: flex-start;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-sm); padding: 10px 14px; font-size: 13px;
+    }
+    .rem-step-num {
+      flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(79,110,247,0.15); border: 1px solid rgba(79,110,247,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: var(--blue);
+    }
+    .rem-refs { display: flex; flex-wrap: wrap; gap: 6px; }
+    .rem-ref-link {
+      font-size: 12px; padding: 4px 10px; border-radius: 4px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--blue); text-decoration: none; transition: all var(--t);
+    }
+    .rem-ref-link:hover { border-color: var(--blue); background: rgba(79,110,247,0.1); }
+    .rem-spinner { text-align: center; padding: 40px; color: var(--text-3); font-size: 13px; }
+
     @media (max-width: 900px) {
       .sidebar { width: 64px; }
       .sidebar-logo span, .sidebar-user, .sidebar-section-label, .nav-item span { display: none; }
@@ -468,6 +512,17 @@
       <button class="btn btn-primary" onclick="submitVuln()">Add Vulnerability</button>
       <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- Remediation modal -->
+<div class="overlay" id="remediationOverlay">
+  <div class="modal" style="max-width:620px;max-height:82vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <h3 style="font-size:17px;font-weight:700" id="remTitle">Remediation Advice</h3>
+      <button class="btn btn-sm btn-outline" onclick="closeRemediation()">✕ Close</button>
+    </div>
+    <div id="remBody"><div class="rem-spinner"><span class="spinner"></span><br>Fetching advisory data…</div></div>
   </div>
 </div>
 
@@ -1222,9 +1277,10 @@
         <td><span class="sev-badge sev-${v.severity}">${v.severity}</span></td>
         <td><span class="badge badge-${v.status==='resolved'?'green':(v.status==='in-progress'?'amber':'red')}">${v.status}</span></td>
         <td style="color:var(--text-3);font-size:12px">${v.reported}</td>
-        <td style="color:${v.status==='resolved'?'var(--text-3)':'var(--red)'};font-size:12px">${v.status==='resolved'?'—':v.reported}</td>
+        <td style="color:${v.status==='resolved'?'var(--text-3)':'var(--red)'};font-size:12px">${v.status==='resolved'?'&mdash;':v.reported}</td>
         <td>
           <div style="display:flex;gap:6px">
+            ${v.status !== 'resolved' ? `<button class="btn btn-sm" style="background:rgba(79,110,247,0.1);color:var(--blue);border:1px solid rgba(79,110,247,0.3)" onclick="fetchRemediation('${v.cve}','${v.component.replace(/'/g,'\\&apos;')}')">🔧 Fix</button>` : ''}
             ${v.status !== 'resolved' ? `<button class="btn btn-sm" style="background:rgba(16,185,129,0.1);color:var(--green);border:1px solid rgba(16,185,129,0.3)" onclick="resolveVuln('${v.id}')">Resolve</button>` : ''}
             <button class="btn btn-sm btn-danger" onclick="deleteVuln('${v.id}')">✕</button>
           </div>
@@ -1261,6 +1317,156 @@
     document.getElementById('addVulnOverlay').classList.add('active');
   }
   function closeModal() { document.getElementById('addVulnOverlay').classList.remove('active'); }
+  function closeRemediation() { document.getElementById('remediationOverlay').classList.remove('active'); }
+
+  /* ── Remediation Advisor (OSV.dev + GitHub Advisory + NVD) ── */
+  async function fetchRemediation(cveId, component) {
+    const overlay = document.getElementById('remediationOverlay');
+    const body    = document.getElementById('remBody');
+    const title   = document.getElementById('remTitle');
+    title.textContent = `Fix Advice: ${cveId}`;
+    body.innerHTML = '<div class="rem-spinner"><span class="spinner"></span><br>Fetching advisory data from OSV.dev…</div>';
+    overlay.classList.add('active');
+
+    try {
+      // Primary source: OSV.dev Vulnerability API
+      const resp = await fetch(`https://api.osv.dev/v1/vulns/${encodeURIComponent(cveId)}`);
+      if (!resp.ok) throw new Error('Advisory not found in OSV.dev');
+      const data = await resp.json();
+
+      // Extract patched/fixed versions from affected[].ranges
+      const fixes = [];
+      (data.affected || []).forEach(aff => {
+        const pkgName = aff.package?.name || component;
+        const ecosystem = aff.package?.ecosystem || '';
+        (aff.ranges || []).forEach(range => {
+          if (range.type === 'SEMVER' || range.type === 'ECOSYSTEM') {
+            (range.events || []).forEach(ev => {
+              if (ev.fixed) fixes.push({ pkg: pkgName, ecosystem, version: ev.fixed });
+            });
+          }
+        });
+        // versions list as fallback
+        if (!fixes.length && aff.versions && aff.versions.length) {
+          fixes.push({ pkg: pkgName, ecosystem, version: 'Upgrade beyond: ' + aff.versions[aff.versions.length - 1] });
+        }
+      });
+
+      // CVSS score
+      let cvssScore = null, cvssVector = null;
+      (data.severity || []).forEach(s => {
+        if (s.type === 'CVSS_V3' && s.score) { cvssScore = s.score; cvssVector = s.score; }
+      });
+
+      // External references
+      const refs = (data.references || []).slice(0, 8);
+
+      const sevColor = {
+        critical: { bg: 'rgba(239,68,68,0.15)', color: 'var(--red)' },
+        high:     { bg: 'rgba(251,146,60,0.15)', color: 'var(--orange)' },
+        medium:   { bg: 'rgba(245,158,11,0.15)', color: 'var(--amber)' },
+        low:      { bg: 'rgba(16,185,129,0.12)', color: 'var(--green)' },
+      };
+      const vulnRec = vulns.find(v => v.cve === cveId);
+      const sev = vulnRec?.severity || 'high';
+      const sc  = sevColor[sev] || sevColor.high;
+
+      // Remediation steps based on severity
+      const urgency = sev === 'critical' ? 'immediately (within 24h per CRA Article 14)'
+                    : sev === 'high'     ? 'within 72 hours'
+                    : 'within your next sprint';
+
+      const ecosystemCmds = {
+        npm: (pkg, ver) => `npm install ${pkg}@${ver}`,
+        PyPI: (pkg, ver) => `pip install ${pkg}==${ver}`,
+        Maven: (pkg, ver) => `Update pom.xml: <version>${ver}</version>`,
+        Go: (pkg, ver) => `go get ${pkg}@v${ver}`,
+        RubyGems: (pkg, ver) => `gem update ${pkg}`,
+      };
+      const firstFix = fixes[0];
+      const upgradeCmd = firstFix && ecosystemCmds[firstFix.ecosystem]
+        ? ecosystemCmds[firstFix.ecosystem](firstFix.pkg, firstFix.version)
+        : firstFix ? `Upgrade ${firstFix.pkg} to ${firstFix.version}` : null;
+
+      body.innerHTML = `
+        <div class="rem-header">
+          <div style="flex:1">
+            <div style="font-size:13px;color:var(--text-2);margin-bottom:6px">📦 ${component}</div>
+            <div style="font-size:12px;color:var(--text-3);line-height:1.6">${(data.summary || data.details || 'No summary available.').slice(0, 280)}${(data.summary||'').length > 280 ? '…' : ''}</div>
+          </div>
+          <span class="rem-sev-pill" style="background:${sc.bg};color:${sc.color}">${sev}</span>
+        </div>
+
+        ${fixes.length ? `
+        <div class="rem-section">
+          <div class="rem-section-title">✅ Patched Versions (OSV.dev)</div>
+          ${fixes.map(f => `
+            <div class="rem-fix-box" style="margin-bottom:8px">
+              <div class="rem-fix-title">Upgrade ${f.pkg}</div>
+              <div class="rem-fix-desc">${f.ecosystem ? f.ecosystem + ' package' : 'Package'} — apply the following fix:</div>
+              <div class="rem-fix-version">${f.version}</div>
+            </div>`).join('')}
+        </div>` : `
+        <div class="rem-section">
+          <div class="rem-fix-box" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25)">
+            <div class="rem-fix-title" style="color:var(--amber)">⚠️ No automatic fix found in OSV.dev</div>
+            <div class="rem-fix-desc">Check the official advisories below or apply vendor-provided patches manually.</div>
+          </div>
+        </div>`}
+
+        <div class="rem-section">
+          <div class="rem-section-title">🛠️ Remediation Steps</div>
+          <div class="rem-steps">
+            <div class="rem-step"><div class="rem-step-num">1</div><div>Assess impact — check if your deployed version is in the affected range.</div></div>
+            ${upgradeCmd ? `<div class="rem-step"><div class="rem-step-num">2</div><div>Run: <code style="background:var(--bg-2);padding:2px 8px;border-radius:4px;font-size:12px">${upgradeCmd}</code></div></div>` : ''}
+            <div class="rem-step"><div class="rem-step-num">${upgradeCmd ? 3 : 2}</div><div>Test your application after upgrading — run your test suite and security checks.</div></div>
+            <div class="rem-step"><div class="rem-step-num">${upgradeCmd ? 4 : 3}</div><div>If actively exploited, report to ENISA <strong>${urgency}</strong> per CRA Article 14.</div></div>
+            <div class="rem-step"><div class="rem-step-num">${upgradeCmd ? 5 : 4}</div><div>Update your SBOM and re-scan to confirm the CVE no longer appears.</div></div>
+          </div>
+        </div>
+
+        <div class="rem-section">
+          <div class="rem-section-title">🔗 Advisory References</div>
+          <div class="rem-refs">
+            <a class="rem-ref-link" href="https://nvd.nist.gov/vuln/detail/${cveId}" target="_blank">📋 NVD</a>
+            <a class="rem-ref-link" href="https://osv.dev/vulnerability/${cveId}" target="_blank">🔍 OSV.dev</a>
+            <a class="rem-ref-link" href="https://github.com/advisories?query=${cveId}" target="_blank">🐙 GitHub Advisories</a>
+            ${refs.filter(r => r.url && !r.url.includes('nvd.nist') && !r.url.includes('osv.dev')).slice(0, 5).map(r => {
+              const label = r.url.replace(/https?:\/\/(www\.)?/, '').split('/')[0];
+              return `<a class="rem-ref-link" href="${r.url}" target="_blank" rel="noopener">↗ ${label}</a>`;
+            }).join('')}
+          </div>
+        </div>
+      `;
+
+    } catch (err) {
+      body.innerHTML = `
+        <div class="rem-section">
+          <div class="rem-fix-box" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);margin-bottom:20px">
+            <div class="rem-fix-title" style="color:var(--amber)">⚠️ Could not fetch from OSV.dev</div>
+            <div class="rem-fix-desc">${err.message}. Showing general remediation guidance.</div>
+          </div>
+        </div>
+        <div class="rem-section">
+          <div class="rem-section-title">🛠️ General Remediation Steps</div>
+          <div class="rem-steps">
+            <div class="rem-step"><div class="rem-step-num">1</div><div>Search for the patched version on the package registry (npm, PyPI, Maven Central).</div></div>
+            <div class="rem-step"><div class="rem-step-num">2</div><div>Update your dependency manifest and lock file, then rebuild your container/artifact.</div></div>
+            <div class="rem-step"><div class="rem-step-num">3</div><div>Run your test suite and a fresh SBOM scan to confirm the CVE is resolved.</div></div>
+            <div class="rem-step"><div class="rem-step-num">4</div><div>If actively exploited, notify ENISA within 24 hours per CRA Article 14.</div></div>
+          </div>
+        </div>
+        <div class="rem-section">
+          <div class="rem-section-title">🔗 Look Up Manually</div>
+          <div class="rem-refs">
+            <a class="rem-ref-link" href="https://nvd.nist.gov/vuln/detail/${cveId}" target="_blank">📋 NVD</a>
+            <a class="rem-ref-link" href="https://osv.dev/vulnerability/${cveId}" target="_blank">🔍 OSV.dev</a>
+            <a class="rem-ref-link" href="https://github.com/advisories?query=${cveId}" target="_blank">🐙 GitHub Advisories</a>
+          </div>
+        </div>
+      `;
+    }
+  }
 
   function submitVuln() {
     const cve = document.getElementById('vCVE').value.trim();
