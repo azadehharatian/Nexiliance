@@ -106,6 +106,16 @@ async function initDb() {
     )
   `;
 
+  const activitiesTable = `
+    CREATE TABLE IF NOT EXISTS activities (
+      id SERIAL PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      type TEXT NOT NULL,
+      payload JSONB NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
   await run(usersTable);
   await run(assessmentsTable);
   await run(vulnerabilitiesTable);
