@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Account — Nexiliance</title>
+  <meta name="description" content="Create your free Nexiliance account and start your EU Cyber Resilience Act compliance journey today.">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { overflow-x: hidden; }
+
+    .auth-page {
+      display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh;
+    }
+
+    /* ── Left branding panel ── */
+    .auth-left {
+      background: var(--bg-2); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: 48px; position: relative; overflow: hidden;
+    }
+    .auth-left-bg {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 70% 50%, rgba(6,182,212,0.12), transparent 65%);
+      pointer-events: none;
+    }
+    .auth-left-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+      -webkit-mask-image: radial-gradient(ellipse at 70% 50%, black 20%, transparent 70%);
+      mask-image: radial-gradient(ellipse at 70% 50%, black 20%, transparent 70%);
+    }
+    .auth-logo {
+      position: relative; z-index: 2;
+      display: flex; align-items: center; gap: 10px;
+      font-family: var(--font-display); font-size: 20px; font-weight: 700;
+      color: var(--text); text-decoration: none;
+    }
+    .auth-logo-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      display: flex; align-items: center; justify-content: center; font-size: 17px;
+    }
+    .auth-left-body {
+      position: relative; z-index: 2; flex: 1;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    .auth-headline { font-size: clamp(26px, 2.8vw, 40px); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 14px; line-height: 1.15; }
+    .auth-subline  { font-size: 15px; color: var(--text-2); line-height: 1.7; margin-bottom: 36px; }
+
+    /* Stats mini-grid */
+    .mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .ms-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 16px;
+    }
+    .ms-num { font-family: var(--font-display); font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+    .ms-lbl { font-size: 12px; color: var(--text-2); }
+
+    /* Compliance badge */
+    .compliance-badge {
+      margin-top: 24px;
+      background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(6,182,212,0.08));
+      border: 1px solid rgba(16,185,129,0.25);
+      border-radius: var(--r-lg); padding: 20px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .cb-icon { font-size: 32px; }
+    .cb-title { font-size: 14px; font-weight: 600; color: var(--green); margin-bottom: 2px; }
+    .cb-desc  { font-size: 12px; color: var(--text-2); }
+
+    .auth-left-footer {
+      position: relative; z-index: 2;
+      font-size: 13px; color: var(--text-3);
+      border-top: 1px solid var(--border); padding-top: 20px;
+    }
+
+    /* ── Right: form ── */
+    .auth-right {
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 48px; background: var(--bg); overflow-y: auto;
+    }
+    .auth-form-wrap { width: 100%; max-width: 440px; padding: 20px 0; }
+    .auth-form-title { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+    .auth-form-sub   { font-size: 14px; color: var(--text-2); margin-bottom: 32px; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    .error-box {
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+      border-radius: var(--r-sm); padding: 12px 16px;
+      font-size: 13px; color: var(--red);
+      margin-bottom: 20px; display: none;
+    }
+    .error-box.visible { display: block; }
+
+    .terms-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-bottom: 24px;
+    }
+    .terms-row input { margin-top: 2px; accent-color: var(--blue); flex-shrink: 0; }
+    .terms-row label { font-size: 13px; color: var(--text-2); line-height: 1.5; cursor: pointer; }
+    .terms-row a { color: var(--blue); }
+
+    .auth-switch { text-align: center; margin-top: 24px; font-size: 14px; color: var(--text-2); }
+    .auth-switch a { color: var(--blue); font-weight: 500; }
+    .auth-switch a:hover { color: var(--blue-light); }
+
+    @media (max-width: 768px) {
+      .auth-page { grid-template-columns: 1fr; }
+      .auth-left  { display: none; }
+      .auth-right { min-height: 100vh; padding: 32px 24px; align-items: flex-start; }
+      .form-row   { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="auth-page">
+
+  <!-- ── Left: branding ── -->
+  <div class="auth-left">
+    <div class="auth-left-bg"></div>
+    <div class="auth-left-grid"></div>
+    <a href="index.html" class="auth-logo">
+      <div class="auth-logo-icon">🛡️</div>
+      Nexiliance
+    </a>
+    <div class="auth-left-body">
+      <h1 class="auth-headline">CRA Compliance<br><span class="gradient-text">Made Manageable</span></h1>
+      <p class="auth-subline">Don't let the EU Cyber Resilience Act catch you off guard. Start your structured readiness journey today — for free.</p>
+
+      <div class="mini-stats">
+        <div class="ms-card">
+          <div class="ms-num gradient-text">42</div>
+          <div class="ms-lbl">CRA requirements checked</div>
+        </div>
+        <div class="ms-card">
+          <div class="ms-num gradient-text">6</div>
+          <div class="ms-lbl">Security pillars covered</div>
+        </div>
+        <div class="ms-card">
+          <div class="ms-num gradient-text">€0</div>
+          <div class="ms-lbl">Cost to get started</div>
+        </div>
+        <div class="ms-card">
+          <div class="ms-num gradient-text">2027</div>
+          <div class="ms-lbl">Enforcement deadline</div>
+        </div>
+      </div>
+
+      <div class="compliance-badge">
+        <div class="cb-icon">🛡️</div>
+        <div>
+          <div class="cb-title">CRA-Aligned Assessment</div>
+          <div class="cb-desc">Built directly from CRA Annex I, Annex II, and Articles 13–14. Always up to date.</div>
+        </div>
+      </div>
+    </div>
+    <div class="auth-left-footer">
+      © 2026 Nexiliance · Not legal advice · GDPR-aware
+    </div>
+  </div>
+
+  <!-- ── Right: form ── -->
+  <div class="auth-right">
+    <div class="auth-form-wrap animate-in">
+      <h2 class="auth-form-title">Create your account</h2>
+      <p class="auth-form-sub">Free forever · No credit card required</p>
+
+      <div class="error-box" id="signupError"></div>
+
+      <form id="signupForm" novalidate>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="signupName">Full Name</label>
+            <input type="text" id="signupName" class="form-input" placeholder="Jana Müller" autocomplete="name" required>
+            <div class="form-error" id="nameErr">Name is required.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="signupCompany">Company</label>
+            <input type="text" id="signupCompany" class="form-input" placeholder="Acme GmbH" required>
+            <div class="form-error" id="companyErr">Company is required.</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="signupProduct">Product Name</label>
+          <input type="text" id="signupProduct" class="form-input" placeholder="e.g. SmartGateway 3000">
+          <div class="form-error" id="productErr"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="signupCategory">Product Category (CRA Classification)</label>
+          <select id="signupCategory" class="form-input">
+            <option value="">— Select your product type —</option>
+            <optgroup label="Default Category (Self-Assessment)">
+              <option value="default-iot">IoT / Smart Home Devices</option>
+              <option value="default-industrial">Industrial Connected Devices</option>
+              <option value="default-software">Software Applications</option>
+              <option value="default-network">Network Equipment (non-critical)</option>
+              <option value="default-other">Other Connected Products</option>
+            </optgroup>
+            <optgroup label="Class I (Notified Body or Harmonized Standards)">
+              <option value="class1-id">Identity Management / Authentication Software</option>
+              <option value="class1-browser">Browsers &amp; Password Managers</option>
+              <option value="class1-vpn">VPN / Firewall / IDS Software</option>
+              <option value="class1-os">Operating Systems</option>
+              <option value="class1-router">Routers &amp; Modems (consumer)</option>
+            </optgroup>
+            <optgroup label="Class II (Third-Party Assessment Required)">
+              <option value="class2-infra">Critical Infrastructure Software</option>
+              <option value="class2-hypervisor">Hypervisors &amp; Container Runtimes</option>
+              <option value="class2-scada">Industrial Control Systems (SCADA/PLC)</option>
+              <option value="class2-smartcard">Smart Cards &amp; HSMs</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="signupEmail">Work Email</label>
+          <input type="email" id="signupEmail" class="form-input" placeholder="you@company.com" autocomplete="email" required>
+          <div class="form-error" id="emailErr">Please enter a valid email address.</div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="signupPass">Password</label>
+            <input type="password" id="signupPass" class="form-input" placeholder="Min. 8 characters" autocomplete="new-password" required>
+            <div class="form-error" id="passErr">Minimum 8 characters.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="signupPassConf">Confirm Password</label>
+            <input type="password" id="signupPassConf" class="form-input" placeholder="Repeat password" autocomplete="new-password" required>
+            <div class="form-error" id="passConfErr">Passwords do not match.</div>
+          </div>
+        </div>
+
+        <div class="terms-row">
+          <input type="checkbox" id="termsCheck" required>
+          <label for="termsCheck">I agree to the <a href="#">Terms of Service</a> and acknowledge that Nexiliance does not provide legal advice.</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="signupBtn">
+          Create Account &amp; Start Assessment →
+        </button>
+      </form>
+
+      <div class="auth-switch">
+        Already have an account? <a href="login.html">Sign in</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script>
+  redirectIfLoggedIn();
+
+  const form     = document.getElementById('signupForm');
+  const errBox   = document.getElementById('signupError');
+  const btn      = document.getElementById('signupBtn');
+
+  const fields = {
+    name:     { el: document.getElementById('signupName'),     errEl: document.getElementById('nameErr') },
+    company:  { el: document.getElementById('signupCompany'),  errEl: document.getElementById('companyErr') },
+    email:    { el: document.getElementById('signupEmail'),    errEl: document.getElementById('emailErr') },
+    pass:     { el: document.getElementById('signupPass'),     errEl: document.getElementById('passErr') },
+    passConf: { el: document.getElementById('signupPassConf'), errEl: document.getElementById('passConfErr') },
+  };
+
+  Object.values(fields).forEach(({ el, errEl }) => {
+    el.addEventListener('input', () => { el.style.borderColor = ''; errEl.classList.remove('visible'); });
+  });
+
+  function fieldErr(key, msg) {
+    const { el, errEl } = fields[key];
+    el.style.borderColor = 'var(--red)';
+    errEl.textContent = msg;
+    errEl.classList.add('visible');
+    return false;
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    errBox.classList.remove('visible');
+    let valid = true;
+
+    const name     = fields.name.el.value.trim();
+    const company  = fields.company.el.value.trim();
+    const email    = fields.email.el.value.trim();
+    const pass     = fields.pass.el.value;
+    const passConf = fields.passConf.el.value;
+
+    if (!name)    { fieldErr('name',    'Full name is required.'); valid = false; }
+    if (!company) { fieldErr('company', 'Company name is required.'); valid = false; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { fieldErr('email', 'Please enter a valid email.'); valid = false; }
+    if (pass.length < 8) { fieldErr('pass', 'Password must be at least 8 characters.'); valid = false; }
+    if (pass !== passConf) { fieldErr('passConf', 'Passwords do not match.'); valid = false; }
+
+    if (!document.getElementById('termsCheck').checked) {
+      errBox.textContent = 'You must agree to the Terms of Service to continue.';
+      errBox.classList.add('visible');
+      valid = false;
+    }
+
+    if (!valid) return;
+
+    btn.innerHTML = '<span class="spinner"></span> Creating account…';
+    btn.disabled = true;
+
+    setTimeout(() => {
+      const result = signupUser({
+        name, company,
+        product:  document.getElementById('signupProduct').value.trim(),
+        category: document.getElementById('signupCategory').value,
+        email, password: pass,
+      });
+
+      if (result.success) {
+        btn.innerHTML = '✓ Account created! Redirecting…';
+        btn.style.background = 'var(--green)';
+        const hash = sessionStorage.getItem('pcra_redirect_hash') || '';
+        sessionStorage.removeItem('pcra_redirect_hash');
+        setTimeout(() => { window.location.href = 'dashboard.html' + hash; }, 700);
+      } else {
+        btn.innerHTML = 'Create Account &amp; Start Assessment →';
+        btn.disabled = false;
+        errBox.textContent = result.error;
+        errBox.classList.add('visible');
+      }
+    }, 600);
+  });
+</script>
+</body>
+</html>
